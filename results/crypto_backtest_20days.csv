@@ -1,0 +1,17 @@
+﻿ticker,mode,hold_days,signal_count,trades,win_rate,avg_return,best_trade,worst_trade,total_return
+BTC-USD,XG_only,20,0,0,0.0,0.0,0.0,0.0,0.0
+BTC-USD,strong_signal,20,0,0,0.0,0.0,0.0,0.0,0.0
+ETH-USD,juAccel_only,20,0,0,0.0,0.0,0.0,0.0,0.0
+ETH-USD,XG_only,20,0,0,0.0,0.0,0.0,0.0,0.0
+ETH-USD,XG_or_juAccel,20,0,0,0.0,0.0,0.0,0.0,0.0
+ETH-USD,strong_signal,20,0,0,0.0,0.0,0.0,0.0,0.0
+BNB-USD,juAccel_only,20,0,0,0.0,0.0,0.0,0.0,0.0
+BNB-USD,XG_only,20,0,0,0.0,0.0,0.0,0.0,0.0
+BNB-USD,XG_or_juAccel,20,0,0,0.0,0.0,0.0,0.0,0.0
+BNB-USD,strong_signal,20,0,0,0.0,0.0,0.0,0.0,0.0
+LTC-USD,juAccel_only,20,1,0,0.0,0.0,0.0,0.0,0.0
+LTC-USD,XG_only,20,0,0,0.0,0.0,0.0,0.0,0.0
+LTC-USD,XG_or_juAccel,20,1,0,0.0,0.0,0.0,0.0,0.0
+LTC-USD,strong_signal,20,0,0,0.0,0.0,0.0,0.0,0.0
+BTC-USD,juAccel_only,20,1,1,0.0,-1.833166836556721,-1.833166836556721,-1.833166836556721,-1.833166836556721
+BTC-USD,XG_or_juAccel,20,1,1,0.0,-1.833166836556721,-1.833166836556721,-1.833166836556721,-1.833166836556721

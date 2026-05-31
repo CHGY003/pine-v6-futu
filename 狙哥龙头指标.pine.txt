@@ -1,0 +1,153 @@
+// ═══════════════════════════════════════════════════════════════
+// 狙哥龙头指标 (日K副图指标) - Pine Script V6 转码版
+// 原作者: 狙盘手 | 转换自通达信公式
+// ═══════════════════════════════════════════════════════════════
+
+
+//@version=6
+indicator("狙盘龙头指标", shorttitle="狙盘龙头指标", overlay=false, max_labels_count=500)
+
+buyMode = input.string("适中", "买入条件强度", options=["原版", "适中", "宽松"])
+
+// ─── 通达信函数等价实现 ───────────────────────────────────────
+const int WINNER_LEN = 60
+
+safeDiv(float numerator, float denominator, float fallback = na) =>
+    denominator == 0 or na(denominator) ? fallback : numerator / denominator
+
+intPart(float value) =>
+    int(value)
+
+winner(float price) =>
+    lowBound = ta.lowest(low, WINNER_LEN)
+    highBound = ta.highest(high, WINNER_LEN)
+    raw = safeDiv(price - lowBound, highBound - lowBound, 0.5)
+    math.max(0.0, math.min(1.0, raw))
+
+countSince(bool condition, int length) =>
+    math.sum(condition ? 1 : 0, math.max(nz(length), 1))
+
+dma(float source, float alpha) =>
+    boundedAlpha = math.max(0.0, math.min(1.0, nz(alpha, 0.0)))
+    var float out = na
+    out := na(out[1]) ? source : boundedAlpha * source + (1.0 - boundedAlpha) * out[1]
+
+// ─── 原公式主体计算 ───────────────────────────────────────────
+ZLCM   = ta.ema(winner(close) * 70, 3)
+SHCM   = ta.ema((winner(close * 1.1) - winner(close * 0.9)) * 80, 3)
+sumCM  = ZLCM + SHCM
+ZSHTL  = safeDiv(SHCM, sumCM, 0.0) * 100
+ZZLKP  = safeDiv(ZLCM, sumCM, 0.0) * 100
+ZCMZL  = ta.sma(sumCM, 13)
+
+ZZNTS  = ta.barssince(ZSHTL < 90 and ZSHTL[1] > 90)
+ZSHJJ  = ta.ema(ZSHTL, 89)
+ZZLJJ  = ta.ema(ZZLKP, 89)
+ZJLRQD = intPart(ZZLKP - ZZLJJ)
+SH8    = ta.ema(ZSHTL, 8)
+DKB    = ZZLKP - ZZLKP[1] > ZSHTL - ZSHTL[1] ? 1 : 0
+
+juRef   = intPart(ZSHTL)
+juCoef  = intPart(ZZLKP)
+juStr   = ZJLRQD
+juCycle = intPart(ZCMZL) - 50
+
+K1 = ta.lowest(low, 5)
+K2 = ta.highest(high, 5)
+K3 = ta.ema(safeDiv(close - K1, K2 - K1, 0.0) * 100, 4)
+K5 = (high + low) / 2
+
+volSum5  = math.sum(volume, 5)
+volSum13 = math.sum(volume, 13)
+volSum34 = math.sum(volume, 34)
+volSum75 = math.sum(volume, 75)
+
+K6 = dma(K5, safeDiv(volume, volSum5, 0.0))
+K7 = dma(K5, safeDiv(volume, volSum13, 0.0))
+K8 = dma(K5, safeDiv(volume, volSum34, 0.0))
+K9 = dma(K5, safeDiv(volume, volSum75, 0.0))
+
+KA = ta.ema(winner(0.9 * close), 5)
+KB = 1 - ta.ema(winner(1.2 * close), 5)
+KC = ta.ema(winner(close), 5)
+
+KDY = safeDiv(100 * (close - K6), K6, 0.0)
+KE  = safeDiv(100 * (close - K7), K7, 0.0)
+KF  = safeDiv(100 * (math.min(close, open) - K8), K8, 0.0)
+
+KG = ta.barssince(K8 > K9 and K8[1] <= K9[1])
+KGCountLen = math.max(nz(KG), 1)
+
+KH = ((countSince(winner(close) < 0.11 and ta.ema(winner(close), 5) < 0.15, 2) > 0
+     or ((1 - winner(1.2 * close)) >= 0.8 and winner(close) < 0.05))
+     and countSince(KE < -16, 2) > 0
+     and countSince(KF < -20, 2) > 0)
+
+K12 = (countSince(KDY < -10, 2) > 0
+     and countSince(KE < -15, 2) > 0
+     and countSince(KF < -15, 2) > 0
+     and countSince(KA > 0.8, KGCountLen) == 0)
+
+K13 = (countSince(KH or K12, 2) > 0
+     and K3 > K3[1]
+     and (1 - winner(1.15 * close)) * 100 > 80)
+
+K14 = K13 and countSince(K13, 3) <= 1 ? 1 : 0
+ZVF = safeDiv(100 * (close - close[1]), close[1], 0.0)
+
+juCtrl  = juCoef > 10 and juStr > -10
+juVsig  = ta.crossover(juCoef, 50)
+buyLookback = buyMode == "原版" ? 9 : buyMode == "适中" ? 13 : 18
+buyRiseMin  = buyMode == "原版" ? 3.0 : buyMode == "适中" ? 2.5 : 2.0
+buyCtrl     = buyMode == "原版" ? juCtrl : buyMode == "适中" ? (juCoef > 10 and juStr > -15) : (juCoef > 8 and juStr > -20)
+buySetup    = buyMode == "原版" ? K14[1] == 1 : K14 == 1 or K14[1] == 1
+XGBase  = countSince(buySetup, buyLookback) > 0
+XG      = XGBase and ZVF > buyRiseMin and buyCtrl
+juAccel = ZSHTL >= 90
+
+// ═══════════════════════════════════════════════════════════════
+// 绘图输出 - 对应原通达信输出线和 STICKLINE
+// ═══════════════════════════════════════════════════════════════
+
+plot(juRef,  "狙击参考", color.yellow, linewidth=1)
+plot(juCoef, "狙击系数", color.aqua, linewidth=1)
+plot(juStr,  "狙击强度", color.red, linewidth=2)
+plot(juCycle, "情绪周期", color.white, display=display.data_window)
+
+// STICKLINE(C>0,ZSHTL,ZZLKP,0,0),COLOREEEEEE;
+pZshtl = plot(close > 0 ? ZSHTL : na, "STICK-ZSHTL", color.new(#EEEEEE, 100), display=display.none)
+pZzlkp = plot(close > 0 ? ZZLKP : na, "STICK-ZZLKP", color.new(#EEEEEE, 100), display=display.none)
+fill(pZshtl, pZzlkp, color=#EEEEEE, title="筹码灰区")
+
+// STICKLINE(ZSHJJ>REF(ZSHJJ,1),ZSHTL,ZSHJJ,1,0),COLORAAAAAA;
+pZshjjTop = plot(ZSHJJ > ZSHJJ[1] ? ZSHTL : na, "ZSHJJ Top", color.new(#AAAAAA, 100), display=display.none)
+pZshjjBot = plot(ZSHJJ > ZSHJJ[1] ? ZSHJJ : na, "ZSHJJ Bottom", color.new(#AAAAAA, 100), display=display.none)
+fill(pZshjjTop, pZshjjBot, color=#AAAAAA, title="散户抬升灰区")
+
+// STICKLINE(C>0,ZZLKP,0,0,0),COLORBLUE;
+plot(close > 0 ? ZZLKP : na, "主力柱", color.blue, linewidth=1, style=plot.style_histogram)
+
+// STICKLINE(ZZLKP>75,ZZLKP,0,2,0),COLORFFFFFF;
+plot(ZZLKP > 75 ? ZZLKP : na, "主力高位柱", color.white, linewidth=2, style=plot.style_histogram)
+
+// STICKLINE(ZZLJJ>REF(ZZLJJ,1),ZZLKP,ZZLJJ,4,0),COLORRED;
+pZzljjTop = plot(ZZLJJ > ZZLJJ[1] ? ZZLKP : na, "ZZLJJ Top", color.new(color.red, 100), display=display.none)
+pZzljjBot = plot(ZZLJJ > ZZLJJ[1] ? ZZLJJ : na, "ZZLJJ Bottom", color.new(color.red, 100), display=display.none)
+fill(pZzljjTop, pZzljjBot, color=color.red, title="主力拉升红区")
+
+// STICKLINE(ZSHTL>=90,ZZLKP,0,5,0),COLOR66FFCC;
+plot(juAccel ? ZZLKP : na, "加油冲", color=#66FFCC, linewidth=5, style=plot.style_histogram)
+
+// 原输出信号
+plot(juCtrl ? 1 : 0, "控盘", color=#0066FF, linewidth=2, style=plot.style_columns)
+plot(juVsig ? 1 : 0, "狙盘手V", color.green, linewidth=2, style=plot.style_columns)
+plot(XG ? 1 : 0, "XG", color.fuchsia, linewidth=2, style=plot.style_columns)
+plotshape(juVsig, "V提示", shape.triangleup, location.bottom, color.green, size=size.small, text="试买", textcolor=color.rgb(19, 104, 21))
+plotshape(XG, "买入提示", shape.labelup, location.bottom, color.fuchsia, size=size.normal, text="买入", textcolor=color.white)
+
+hline(0, "Zero", color.gray, hline.style_dashed, 1)
+
+alertcondition(juCtrl, title="控盘", message="{{ticker}} 控盘信号")
+alertcondition(juVsig, title="狙盘手V", message="{{ticker}} 狙盘手V信号")
+alertcondition(XG, title="XG 买入", message="{{ticker}} XG买入信号")
+alertcondition(juAccel, title="加油冲", message="{{ticker}} 加油冲信号")
